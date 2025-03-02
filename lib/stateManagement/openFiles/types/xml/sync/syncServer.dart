@@ -1,12 +1,16 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:xml/xml.dart';
 
 import '../../../../../utils/fileOpenCommand.dart';
 import '../../../../events/statusInfo.dart';
+import '../ipc/messageTypes.dart';
+import '../ipc/namedPipeHandler.dart';
+import 'actionTypeHandler.dart';
+import 'syncGame.dart'; 
 
 const wsPort = 1547;
 
@@ -16,6 +20,7 @@ DateTime? serverStartTime;
 
 var _wsMessageStream = StreamController<SyncMessage>.broadcast();
 var wsMessageStream = _wsMessageStream.stream;
+Map<int, LayoutData> _entityLayoutCache = {};
 
 abstract class WsMessage {
   Map toJson();
@@ -70,14 +75,14 @@ void _handleWebSocket(WebSocket client) {
   canSync.value = true;
   client.listen(_onClientData);
   client.done
-    .then((_) => _onClientDone())
-    .catchError((e) {
-      print("Error in WebSocket client: $e");
-      _onClientDone();
-    });
+      .then((_) => _onClientDone())
+      .catchError((e) {
+    print("Error in WebSocket client: $e");
+    _onClientDone();
+  });
   wsSend(SyncMessage("connected", "", {}));
   if (_startupCompleted())
-    messageLog.add("Connected");
+   messageLog.add("Connected");
 }
 
 void _onClientData(data) {
@@ -90,16 +95,46 @@ void _onClientData(data) {
     onFileOpenCommand(files);
     return;
   }
+
+  if (method == "update") {
+    var msg = SyncMessage.fromJson(jsonData);
+    String? propXml = msg.args["propXml"];
+    if (propXml != null) {
+      _procLayout(propXml);
+    }
+  }
+
   var message = SyncMessage.fromJson(jsonData);
   _wsMessageStream.add(message);
+}
+
+// TODO: We need to handle this somewhere else better but idk how to know if this data is what action tyoe
+void _procLayout(String xml) {
+  final Map<String, int> msgTypes = {
+    "position": LayoutMessages.setPosition.type,
+    "rotation": LayoutMessages.setRotation.type,
+    "scale": LayoutMessages.setScale.type,
+  };
+
+  final document = XmlDocument.parse(xml);
+
+  final SyncGameLayout lay = SyncGameLayout(
+    ActionTypeId.entityLayoutAction.id,
+    layoutCache: _entityLayoutCache,
+    messageTypeMap: msgTypes,
+  );
+
+  if (lay.hasData(document)) {
+    lay.syncFromXml(document); 
+  }
 }
 
 void _onClientDone() {
   print("WebSocket client disconnected");
   _activeSocket = null;
   canSync.value = false;
-  if (_startupCompleted())
-    messageLog.add("Disconnected");
+  if (_startupCompleted()) 
+  messageLog.add("Disconnected");
 }
 
 void wsSend(WsMessage data) {
@@ -115,6 +150,7 @@ void startSyncServer() async {
     final server = await HttpServer.bind("localhost", wsPort);
     server.transform(WebSocketTransformer()).listen(_handleWebSocket);
     serverStartTime = DateTime.now();
+    unawaited(globalPipeHandler.connect());
   } catch (e) {
     print("Failed to start local server. Maybe already running");
   }

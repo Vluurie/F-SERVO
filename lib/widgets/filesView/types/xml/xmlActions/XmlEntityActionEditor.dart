@@ -5,6 +5,7 @@ import '../../../../../stateManagement/openFiles/types/xml/sync/syncListImplemen
 import '../../../../misc/syncButton.dart';
 import '../customXmlProps/layoutsEditor.dart';
 import 'XmlActionEditor.dart';
+import 'XmlActionIngameCreator.dart';
 import 'XmlActionInnerEditor.dart';
 
 class XmlEntityActionEditor extends XmlActionEditor {
@@ -20,10 +21,17 @@ class _XmlEntityActionEditorState extends XmlActionEditorState<XmlEntityActionEd
     return [
       SyncButton(
         uuid: widget.action.uuid,
-        makeSyncedObject: () => SyncedEntityAction(
-          action: widget.action,
-          parentUuid: "",
-        ),
+         makeSyncedObject: () {
+           final action = widget.action;
+           final syncedAction =  SyncedEntityAction(
+            action: action,
+            parentUuid: "",
+          );
+
+           XmlActionIngameCreatorManager(action: action).create();
+
+          return syncedAction;
+        },
       ),
       ...super.getRightHeaderButtons(context),	
     ];
