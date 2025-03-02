@@ -31,10 +31,10 @@ class SyncedXmlList extends SyncedList<XmlProp> {
 }
 
 class SyncedEntityList extends SyncedXmlList {
-  SyncedEntityList({ required super.list, required super.parentUuid }) : super(
+  SyncedEntityList({ required super.list, required super.parentUuid, required XmlActionProp action }) : super(
     listType: "entity", nameHint: "layout",
     allowReparent: false, allowListChange: true,
-    makeSyncedObj: (prop, parentUuid) => EntitySyncedObject(prop, parentUuid: parentUuid),
+    makeSyncedObj: (prop, parentUuid) => EntitySyncedObject(prop, action, parentUuid: parentUuid),
 );
 }
 
@@ -82,6 +82,7 @@ class SyncedEntityAction extends SyncedAction {
     makeSyncedObj: (prop, parentUuid) {
       if (prop.tagName == "layouts") {
         return SyncedEntityList(
+          action: action,
           list: prop.get("normal")?.get("layouts")! ?? prop.get("layouts")!,
           parentUuid: parentUuid,
         );
@@ -96,7 +97,7 @@ class SyncedEntityAction extends SyncedAction {
   );
 
   static bool isEntityAction(XmlProp prop) {
-    return prop is XmlActionProp && { "EntityLayoutAction", "EntityLayoutArea", "EnemySetAction", "EnemySetArea" }.contains(prop.code.strVal);
+    return prop is XmlActionProp && { "EntityLayoutAction", "EntityLayoutArea", "EnemySetAction", "EnemySetArea", "EnemySupplyAction" }.contains(prop.code.strVal);
   }
 
   static XmlProp makePropCopy(XmlProp prop, String newUuid) {

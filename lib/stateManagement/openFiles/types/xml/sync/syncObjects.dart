@@ -14,7 +14,10 @@ import '../../../../Property.dart';
 import '../../../../events/statusInfo.dart';
 import '../../../../hasUuid.dart';
 import '../../../../listNotifier.dart';
+import '../xmlProps/xmlActionProp.dart';
 import '../xmlProps/xmlProp.dart';
+import 'actionTypeHandler.dart';
+import 'syncMessageExtractor.dart';
 import 'syncServer.dart';
 
 enum SyncedObjectsType {
@@ -157,7 +160,7 @@ abstract class SyncedObject with HasUuid implements Disposable {
   }
 
   void updateInternal(SyncMessage message);
-
+  
   @override
   void dispose() {}
 
@@ -170,7 +173,7 @@ abstract class SyncedObject with HasUuid implements Disposable {
   }
 }
 
-abstract class SyncedXmlObject extends SyncedObject {
+abstract class SyncedXmlObject extends SyncedObject with SyncMessageDocExtractor {
   final XmlProp prop;
   late final void Function() syncToClient;
 
@@ -218,17 +221,22 @@ abstract class SyncedXmlObject extends SyncedObject {
     );
   }
 
-  void _syncToClient() {
-    print("Syncing to client: $uuid");
-    wsSend(SyncMessage(
-      "update",
-      uuid,
-      {
-        "type": SyncUpdateType.prop.index,
-        "propXml": prop.toXml().toXmlString()
-      }
-    ));
+void _syncToClient() {
+  print("Syncing to client: $uuid");
+
+  if (this is EntitySyncedObject) {
+    (this as EntitySyncedObject).syncToGame();
   }
+
+  wsSend(SyncMessage(
+    "update",
+    uuid,
+    {
+      "type": SyncUpdateType.prop.index,
+      "propXml": prop.toXml().toXmlString()
+    }
+  ));
+}
 
   void _onPropChange() {
     if (_isUpdating)
@@ -480,10 +488,11 @@ class AreaSyncedObject extends SyncedXmlObject {
 }
 
 class EntitySyncedObject extends SyncedXmlObject {
-  // syncable props: location{ position, rotation?, }, scale?, objId
+    // syncable props: location{ position, rotation?, }, scale?, objId
+  final XmlActionProp action;
 
-  EntitySyncedObject(XmlProp prop, { required super.parentUuid, super.nameHint})
-    : super(type: SyncedObjectsType.entity, prop: prop);
+  EntitySyncedObject(XmlProp prop, this.action, {required super.parentUuid, super.nameHint})
+      : super(type: SyncedObjectsType.entity, prop: prop);
 
   @override
   void updateInternal(SyncMessage message) {
@@ -495,12 +504,27 @@ class EntitySyncedObject extends SyncedXmlObject {
     var locationNew = propXml.getElement("location")!;
     updateXmlPropWithStr(locationCur, "position", locationNew);
     updateXmlPropWithStr(locationCur, "rotation", locationNew);
-    
+
     updateXmlPropWithStr(
       prop, "scale", propXml,
       getInsertPos: () => propXml.childElements.toList().indexWhere((e) => e.name.local == "location") + 1
     );
     updateXmlPropWithStr(prop, "objId", propXml);
+  }
+
+void syncToGame() {
+    final actionName = action.code.strVal;
+
+    print("Action is: ${action.code.strVal}");
+
+    if (actionName != null) {
+      final xmlString = prop.toXml().toXmlString();
+      final document = XmlDocument.parse(xmlString);
+
+      ActionTypeHandler.syncAction(actionName, document);
+    } else {
+      print("Action type is null. Skipping sync.");
+    }
   }
 }
 

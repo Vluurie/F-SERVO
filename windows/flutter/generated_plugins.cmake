@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
+  dart_ipc
   desktop_drop
   flutter_window_close
   permission_handler_windows

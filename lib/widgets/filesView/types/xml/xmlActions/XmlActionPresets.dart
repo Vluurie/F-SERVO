@@ -29,7 +29,7 @@ XmlElement _makePuid({ String code = "0x0" }) {
   );
 }
 
-XmlElement _makeLayout(String name, { int flags = 0 }) {
+XmlElement _makeLayout(String name, { int flags = 0, int? size }) {
   return makeXmlElement(name: name,
     children: [
       makeXmlElement(name: "id", text: "0x${randomId().toRadixString(16)}"),
@@ -43,7 +43,7 @@ XmlElement _makeLayout(String name, { int flags = 0 }) {
         ]),
       ]),
       makeXmlElement(name: "layouts", children: [
-        makeXmlElement(name: "size", text: "0"),
+        makeXmlElement(name: "size", text: "${size ?? 0}")
       ]),
     ],
   );
@@ -157,23 +157,38 @@ class XmlActionPresets {
     ),
     XmlRawPreset.defaultDuplicateWithRandIdAsXml,
   );
-  static XmlRawPreset entityLayout = XmlRawPreset(
-    "Action",
-    XmlActionPresets.action.editor,
-    (cxt) => XmlProp.fromXml(
-      _makeAction("EntityLayoutAction", [
+static XmlRawPreset entityLayout = XmlRawPreset(
+  "Action",
+  XmlActionPresets.action.editor,
+  (cxt) => XmlProp.fromXml(
+    _makeAction(
+      "EntityLayoutAction",
+      [
         makeXmlElement(name: "layouts", children: [
-          _makeLayout("normal", flags: 0),
+          _makeLayout("normal", flags: 0, size: 1)..children.last.children.add(
+            makeXmlElement(name: "value", children: [
+              makeXmlElement(name: "id", text: "0x${randomId().toRadixString(16)}"),
+              makeXmlElement(name: "location", children: [
+                makeXmlElement(name: "position", text: "0 0 0"),
+                makeXmlElement(name: "rotation", text: "0 0 0"),
+              ]),
+              makeXmlElement(name: "objId", text: "em0000"),
+              makeXmlElement(name: "setType", text: "0"),
+              makeXmlElement(name: "setFlag", text: "0x0"), // or 0x80000 for NPC behavior default (better for moving around the entity)
+              makeXmlElement(name: "setRtn", text: "0"),
+            ])
+          ),
           _makeLayout("hard", flags: 1),
           _makeLayout("extream", flags: 1),
         ]),
         makeXmlElement(name: "bForwardState", text: "0"),
-      ]),
-      file: cxt.file,
-      parentTags: cxt.parentTags,
+      ],
     ),
-    _updateIdsInDuplicatedEntityAction,
-  );
+    file: cxt.file,
+    parentTags: cxt.parentTags,
+  ),
+  _updateIdsInDuplicatedEntityAction,
+);
   static XmlRawPreset entityLayoutArea = XmlRawPreset(
     "Action",
     XmlActionPresets.action.editor,
