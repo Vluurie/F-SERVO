@@ -1,8 +1,4 @@
-import 'dart:typed_data';
-
 import 'package:xml/xml.dart';
-
-import '../ipc/messageByteHelper.dart';
 
 mixin SyncMessageDocExtractor {
   
@@ -26,10 +22,5 @@ mixin SyncMessageDocExtractor {
 
     final values = element.innerText.trim().split(" ").map((v) => double.tryParse(v) ?? 0.0).toList();
     return values.length == 3 ? values : null;
-  }
-
-  Uint8List? extractIntAsBytes(XmlDocument document, String sectionName) {
-    int? value = extractInt(document, sectionName);
-    return value != null ? MessageByteHelper.intToBytes(value) : null;
   }
 }
