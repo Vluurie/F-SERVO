@@ -54,3 +54,7 @@ assets/entityThumbnails
 assets/wavToWemTemplate_*.zip
 log.txt
 lib/randomScripts
+
+# FVM Version Cache
+.fvm/
+.fvmrc

@@ -74,8 +74,7 @@ class LayoutActionHandler extends XmlActionIngameCreator {
       id: entityId,
       typeId: actionType.id,
       actionId: actionId,
-      messageType: LayoutMessages.checkExistOrCreate.type,
-      logLabel: actionType.logLabel,
+      messageType: LayoutMessages.checkExistOrCreate.type
     );
   }
 

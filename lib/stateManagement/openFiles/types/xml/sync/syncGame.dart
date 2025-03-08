@@ -127,9 +127,7 @@ class SyncGameLayout extends SyncGameBase {
       id: id,
       typeId: typeId,
       values: values,
-      messageType: messageType,
-      logLabel:
-          "Set${propertyName[0].toUpperCase()}${propertyName.substring(1)}",
+      messageType: messageType
     );
   }
 

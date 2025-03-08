@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'messageByteHelper.dart';
+import '../../../../../fileTypeUtils/utils/ByteDataWrapper.dart';
 import 'messageFrame.dart';
 import 'messageTypes.dart';
 import 'namedPipeHandler.dart';
@@ -30,13 +30,16 @@ class MessageReceiver {
   }
 
   void _processGetPosition(Uint8List payload) {
-    if (payload.length < 12) {
-      print("Invalid payload length for GetPosition");
-      return;
-    }
-
-    List<double> position = MessageByteHelper.bytesToVector3(payload);
-
-    print("Received GetPosition: X=${position[0]}, Y=${position[1]}, Z=${position[2]}");
+  if (payload.length < 12) {
+    print("Invalid payload length for GetPosition");
+    return;
   }
+
+  final wrapper = ByteDataWrapper(payload.buffer);
+  double x = wrapper.readFloat32();
+  double y = wrapper.readFloat32();
+  double z = wrapper.readFloat32();
+
+  print("Received GetPosition: X=$x, Y=$y, Z=$z");
+}
 }
