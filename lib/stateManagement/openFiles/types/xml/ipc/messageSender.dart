@@ -54,20 +54,22 @@ else {
 }
 }
 
-  Future<void> sendVectorMessage({
-    required MessageContext context,
-    required List<double> values,
-    required int messageType,
-  }) async {
-    final contextBytes = context.toBytes();
-    final totalSize = contextBytes.length + 12; // 3 floats (4 bytes each)
-    final wrapper = ByteDataWrapper.allocate(totalSize);
-    wrapper.writeBytes(contextBytes);
-    wrapper.writeFloat32(values[0]);
-    wrapper.writeFloat32(values[1]);
-    wrapper.writeFloat32(values[2]);
-    await _sendMessage(messageType, wrapper.buffer.asUint8List(0, wrapper.position));
-  }
+Future<void> sendVectorMessage({
+  required MessageContext context,
+  required double x,
+  required double y,
+  required double z,
+  required int messageType,
+}) async {
+  final contextBytes = context.toBytes();
+  final totalSize = contextBytes.length + 12; // 3 floats (4 bytes each)
+  final wrapper = ByteDataWrapper.allocate(totalSize);
+  wrapper.writeBytes(contextBytes);
+  wrapper.writeFloat32(x);
+  wrapper.writeFloat32(y);
+  wrapper.writeFloat32(z);
+  await _sendMessage(messageType, wrapper.buffer.asUint8List(0, totalSize));
+}
 
   /// First it checks if the Action exists in a HAP ingame,
   /// if it does not exist it will create the Action in the same HAP send by the context

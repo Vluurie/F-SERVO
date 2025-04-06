@@ -10,8 +10,6 @@ abstract class SyncGameBase with SyncMessageDocExtractor, MessageSender  {
 }
 
 
-/// uses flat double fields instead of Vector3/List<double> for performance.
-/// avoids boxing, reduces GC pressure, and improves memory access speed.
 class LayoutData {
   double posX, posY, posZ;
   double rotX, rotY, rotZ;
@@ -69,36 +67,30 @@ class SyncGameEntityLayout extends SyncGameBase {
 
     final context = MessageContext(id: id, typeId: typeId);
 
-      sendObjectIdMessage(
-        context: context.copyWith(objId: objId),
-        messageType: LayoutMessages.setObjId.type,
-      );
+    sendObjectIdMessage(
+      context: context.copyWith(objId: objId),
+      messageType: LayoutMessages.setObjId.type,
+    );
 
-    _sendMessageWithType(context, LayoutMessages.setType.type, newSetType);
-    _sendMessageWithType(context, LayoutMessages.setFlag.type, newSetFlag,
-        isUint: true);
-    _sendMessageWithType(context, LayoutMessages.setRtn.type, newSetRtn);
-  }
-
-  void _sendMessageWithType(
-    MessageContext context,
-    int messageType,
-    int? value, {
-    bool isUint = false,
-  }) {
-    if (value == null) return;
-
-    if (isUint) {
+    if (newSetType != null) {
       sendUintMessage(
         context: context,
-        value: value,
-        messageType: messageType,
+        value: newSetType,
+        messageType: LayoutMessages.setType.type,
       );
-    } else {
-      sendIntMessage(
+    }
+    if (newSetFlag != null) {
+      sendUintMessage(
         context: context,
-        value: value,
-        messageType: messageType,
+        value: newSetFlag,
+        messageType: LayoutMessages.setFlag.type,
+      );
+    }
+    if (newSetRtn != null) {
+      sendUintMessage(
+        context: context,
+        value: newSetRtn,
+        messageType: LayoutMessages.setRtn.type,
       );
     }
   }
@@ -122,10 +114,6 @@ class SyncGameLayout extends SyncGameBase {
 
     final context = MessageContext(id: id, typeId: typeId);
 
-    final position = extractVector(document, "position");
-    final rotation = extractVector(document, "rotation");
-    final scale = extractVector(document, "scale");
-
     final data = layoutCache[id] ??
         LayoutData(
           posX: 0.0,
@@ -139,39 +127,70 @@ class SyncGameLayout extends SyncGameBase {
           scaleZ: 1.0,
         );
 
-    if (position != null &&
-        data.vectorChanged(position[0], position[1], position[2], data.posX, data.posY, data.posZ)) {
-      _sendVectorMessage(context, position, "position");
-      data.updatePosition(position[0], position[1], position[2]);
-    }
-
-    if (rotation != null &&
-        data.vectorChanged(rotation[0], rotation[1], rotation[2], data.rotX, data.rotY, data.rotZ)) {
-      _sendVectorMessage(context, rotation, "rotation");
-      data.updateRotation(rotation[0], rotation[1], rotation[2]);
-    }
-
-    if (scale != null &&
-        data.vectorChanged(scale[0], scale[1], scale[2], data.scaleX, data.scaleY, data.scaleZ)) {
-      _sendVectorMessage(context, scale, "scale");
-      data.updateScale(scale[0], scale[1], scale[2]);
-    }
+    _syncVector(
+      document,
+      "position",
+      data.posX,
+      data.posY,
+      data.posZ,
+      data.updatePosition,
+      context,
+      defaultValue: 0.0,
+    );
+    _syncVector(
+      document,
+      "rotation",
+      data.rotX,
+      data.rotY,
+      data.rotZ,
+      data.updateRotation,
+      context,
+      defaultValue: 0.0,
+    );
+    _syncVector(
+      document,
+      "scale",
+      data.scaleX,
+      data.scaleY,
+      data.scaleZ,
+      data.updateScale,
+      context,
+      defaultValue: 1.0,
+    );
 
     layoutCache[id] = data;
   }
 
-  void _sendVectorMessage(MessageContext context, List<double> values, String propertyName) {
-    final messageType = messageTypeMap[propertyName];
-    if (messageType == null) {
-      print("Warning: No message type defined for $propertyName");
-      return;
+  void _syncVector(
+    XmlDocument document,
+    String section,
+    double currentX,
+    double currentY,
+    double currentZ,
+    void Function(double, double, double) updateFunc,
+    MessageContext context, {
+    required double defaultValue,
+  }) {
+    final element = document.findAllElements(section).firstOrNull;
+    if (element == null) return;
+    final parts = element.innerText.trim().split(" ");
+    if (parts.length != 3) return;
+    final x = double.tryParse(parts[0]) ?? defaultValue;
+    final y = double.tryParse(parts[1]) ?? defaultValue;
+    final z = double.tryParse(parts[2]) ?? defaultValue;
+    if (x != currentX || y != currentY || z != currentZ) {
+      final int? messageType = messageTypeMap[section];
+      if (messageType != null) {
+        sendVectorMessage(
+          context: context,
+          x: x,
+          y: y,
+          z: z,
+          messageType: messageType,
+        );
+      }
+      updateFunc(x, y, z);
     }
-
-    sendVectorMessage(
-      context: context,
-      values: values,
-      messageType: messageType,
-    );
   }
 
   bool hasData(XmlDocument document) {
