@@ -1,29 +1,54 @@
 import 'package:xml/xml.dart';
 
+import '../ipc/messageContext.dart';
 import '../ipc/messageSender.dart';
 import '../ipc/messageTypes.dart';
 import 'syncMessageExtractor.dart';
 
-abstract class SyncGameBase with SyncMessageDocExtractor, MessageSender {
+abstract class SyncGameBase with SyncMessageDocExtractor, MessageSender  {
   void syncFromXml(XmlDocument document);
 }
 
+
+/// uses flat double fields instead of Vector3/List<double> for performance.
+/// avoids boxing, reduces GC pressure, and improves memory access speed.
 class LayoutData {
-  List<double> position;
-  List<double> rotation;
-  List<double> scale;
+  double posX, posY, posZ;
+  double rotX, rotY, rotZ;
+  double scaleX, scaleY, scaleZ;
 
   LayoutData({
-    required this.position,
-    required this.rotation,
-    required this.scale,
+    required this.posX,
+    required this.posY,
+    required this.posZ,
+    required this.rotX,
+    required this.rotY,
+    required this.rotZ,
+    required this.scaleX,
+    required this.scaleY,
+    required this.scaleZ,
   });
 
-  bool hasChanged(List<double> newValues, List<double> oldValues) {
-    for (int i = 0; i < newValues.length; i++) {
-      if (newValues[i] != oldValues[i]) return true;
-    }
-    return false;
+  bool vectorChanged(double x1, double y1, double z1, double x2, double y2, double z2) {
+    return x1 != x2 || y1 != y2 || z1 != z2;
+  }
+
+  void updatePosition(double x, double y, double z) {
+    posX = x;
+    posY = y;
+    posZ = z;
+  }
+
+  void updateRotation(double x, double y, double z) {
+    rotX = x;
+    rotY = y;
+    rotZ = z;
+  }
+
+  void updateScale(double x, double y, double z) {
+    scaleX = x;
+    scaleY = y;
+    scaleZ = z;
   }
 }
 
@@ -42,92 +67,110 @@ class SyncGameEntityLayout extends SyncGameBase {
 
     if (id == null) return;
 
-    if (objId != null && objId.length == 6) {
-      sendObjectIdMessage(
-        id: id,
-        objId: objId,
-        messageType: LayoutMessages.setObjId.type,
-        typeId: typeId,
-      );
-    }
+    final context = MessageContext(id: id, typeId: typeId);
 
-    _sendMessageWithType(id, typeId, LayoutMessages.setType.type, newSetType);
-    _sendMessageWithType(id, typeId, LayoutMessages.setFlag.type, newSetFlag, isUint: true);
-    _sendMessageWithType(id, typeId, LayoutMessages.setRtn.type, newSetRtn);
+      sendObjectIdMessage(
+        context: context.copyWith(objId: objId),
+        messageType: LayoutMessages.setObjId.type,
+      );
+
+    _sendMessageWithType(context, LayoutMessages.setType.type, newSetType);
+    _sendMessageWithType(context, LayoutMessages.setFlag.type, newSetFlag,
+        isUint: true);
+    _sendMessageWithType(context, LayoutMessages.setRtn.type, newSetRtn);
   }
 
-  void _sendMessageWithType(int id, int typeId, int messageType, int? value,
-      {bool isUint = false}) {
+  void _sendMessageWithType(
+    MessageContext context,
+    int messageType,
+    int? value, {
+    bool isUint = false,
+  }) {
     if (value == null) return;
 
     if (isUint) {
-      sendUintMessage(id: id, value: value, messageType: messageType, typeId: typeId);
+      sendUintMessage(
+        context: context,
+        value: value,
+        messageType: messageType,
+      );
     } else {
-      sendIntMessage(id: id, value: value, messageType: messageType, typeId: typeId);
+      sendIntMessage(
+        context: context,
+        value: value,
+        messageType: messageType,
+      );
     }
   }
 }
 
-
 class SyncGameLayout extends SyncGameBase {
   final Map<int, LayoutData> layoutCache;
   final Map<String, int> messageTypeMap;
-    final int typeId;
+  final int typeId;
 
-  SyncGameLayout(this.typeId, {
+  SyncGameLayout(
+    this.typeId, {
     required this.layoutCache,
     required this.messageTypeMap,
   });
 
   @override
   void syncFromXml(XmlDocument document) {
-    int? id = extractInt(document, "id") ?? -1;
-
+    int id = extractInt(document, "id") ?? -1;
     if (id == -1) return;
 
-    final List<double>? newPosition = extractVector(document, "position");
-    final List<double>? newRotation = extractVector(document, "rotation");
-    final List<double>? newScale = extractVector(document, "scale");
+    final context = MessageContext(id: id, typeId: typeId);
 
-    LayoutData lastData = layoutCache[id] ??
+    final position = extractVector(document, "position");
+    final rotation = extractVector(document, "rotation");
+    final scale = extractVector(document, "scale");
+
+    final data = layoutCache[id] ??
         LayoutData(
-          position: [0.0, 0.0, 0.0],
-          rotation: [0.0, 0.0, 0.0],
-          scale: [1.0, 1.0, 1.0],
+          posX: 0.0,
+          posY: 0.0,
+          posZ: 0.0,
+          rotX: 0.0,
+          rotY: 0.0,
+          rotZ: 0.0,
+          scaleX: 1.0,
+          scaleY: 1.0,
+          scaleZ: 1.0,
         );
 
-    if (newPosition != null &&
-        lastData.hasChanged(newPosition, lastData.position)) {
-      _sendVectorMessage(id, newPosition, "position");
-      lastData.position = newPosition;
+    if (position != null &&
+        data.vectorChanged(position[0], position[1], position[2], data.posX, data.posY, data.posZ)) {
+      _sendVectorMessage(context, position, "position");
+      data.updatePosition(position[0], position[1], position[2]);
     }
 
-    if (newRotation != null &&
-        lastData.hasChanged(newRotation, lastData.rotation)) {
-      _sendVectorMessage(id, newRotation, "rotation");
-      lastData.rotation = newRotation;
+    if (rotation != null &&
+        data.vectorChanged(rotation[0], rotation[1], rotation[2], data.rotX, data.rotY, data.rotZ)) {
+      _sendVectorMessage(context, rotation, "rotation");
+      data.updateRotation(rotation[0], rotation[1], rotation[2]);
     }
 
-    if (newScale != null && lastData.hasChanged(newScale, lastData.scale)) {
-      _sendVectorMessage(id, newScale, "scale");
-      lastData.scale = newScale;
+    if (scale != null &&
+        data.vectorChanged(scale[0], scale[1], scale[2], data.scaleX, data.scaleY, data.scaleZ)) {
+      _sendVectorMessage(context, scale, "scale");
+      data.updateScale(scale[0], scale[1], scale[2]);
     }
 
-    layoutCache[id] = lastData;
+    layoutCache[id] = data;
   }
 
-  void _sendVectorMessage(int id, List<double> values, String propertyName) {
-    int? messageType = messageTypeMap[propertyName];
+  void _sendVectorMessage(MessageContext context, List<double> values, String propertyName) {
+    final messageType = messageTypeMap[propertyName];
     if (messageType == null) {
       print("Warning: No message type defined for $propertyName");
       return;
     }
 
     sendVectorMessage(
-      id: id,
-      typeId: typeId,
+      context: context,
       values: values,
-      messageType: messageType
+      messageType: messageType,
     );
   }
 

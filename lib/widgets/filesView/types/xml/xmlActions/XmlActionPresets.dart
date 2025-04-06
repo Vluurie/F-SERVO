@@ -186,6 +186,7 @@ static XmlRawPreset entityLayout = XmlRawPreset(
     ),
     file: cxt.file,
     parentTags: cxt.parentTags,
+    rootProp: cxt.parent
   ),
   _updateIdsInDuplicatedEntityAction,
 );
@@ -211,6 +212,7 @@ static XmlRawPreset entityLayout = XmlRawPreset(
       ]),
       file: cxt.file,
       parentTags: cxt.parentTags,
+      rootProp: cxt.parent
     ),
     _updateIdsInDuplicatedEntityAction,
   );
@@ -236,6 +238,7 @@ static XmlRawPreset entityLayout = XmlRawPreset(
       ]),
       file: cxt.file,
       parentTags: cxt.parentTags,
+      rootProp: cxt.parent
     ),
     _updateIdsInDuplicatedEntityAction,
   );
@@ -283,6 +286,7 @@ static XmlRawPreset entityLayout = XmlRawPreset(
       ]),
       file: cxt.file,
       parentTags: cxt.parentTags,
+      rootProp: cxt.parent
     ),
     _updateIdsInDuplicatedEntityAction,
   );

@@ -141,6 +141,8 @@ abstract class SyncedObject with HasUuid implements Disposable {
     endSync();
   }
 
+   int get actionTypeId;
+
   SyncMessage getStartSyncMsg();
 
   void startSync() {
@@ -446,6 +448,10 @@ class SyncedList<T extends HasUuid> extends SyncedObject {
     onLengthChange?.call();
     return obj;
   }
+  
+  @override
+  // TODO: implement actionTypeId
+  int get actionTypeId => 0;
 }
 
 class AreaSyncedObject extends SyncedXmlObject {
@@ -485,6 +491,10 @@ class AreaSyncedObject extends SyncedXmlObject {
 
     // TODO handle area type change
   }
+  
+  @override
+  // TODO: implement actionTypeId
+  int get actionTypeId => 0;
 }
 
 class EntitySyncedObject extends SyncedXmlObject {
@@ -513,18 +523,21 @@ class EntitySyncedObject extends SyncedXmlObject {
   }
 
 void syncToGame() {
+  
     final actionName = action.code.strVal;
 
-    print("Action is: ${action.code.strVal}");
+    if (actionName == null) return;
 
-    if (actionName != null) {
       final xmlString = prop.toXml().toXmlString();
       final document = XmlDocument.parse(xmlString);
-
-      ActionTypeHandler.syncAction(actionName, document);
-    } else {
-      print("Action type is null. Skipping sync.");
-    }
+      ActionTypeHandler.syncAction(action, document);
+  }
+  
+   @override
+  int get actionTypeId {
+    final actionName = action.code.strVal;
+    final type = actionName != null ? ActionTypeHandler.getTypeId(actionName) : null;
+    return type?.id ?? 0;
   }
 }
 
@@ -580,6 +593,10 @@ class BezierSyncedObject extends SyncedXmlObject {
     var sizeProp = root.get("size")!;
     (sizeProp.value as NumberProp).value = newChildrenCount;
   }
+  
+  @override
+  // TODO: implement actionTypeId
+  int get actionTypeId => 0;
 }
 
 class EMGeneratorNodeSyncedObject extends SyncedXmlObject {
@@ -597,6 +614,10 @@ class EMGeneratorNodeSyncedObject extends SyncedXmlObject {
     updateXmlPropWithStr(prop, "point", propXml);
     updateXmlPropWithStr(prop, "radius", propXml);
   }
+  
+  @override
+  // TODO: implement actionTypeId
+  int get actionTypeId => 0;
 }
 
 class EMGeneratorDistSyncedObject extends SyncedXmlObject {
@@ -629,6 +650,10 @@ class EMGeneratorDistSyncedObject extends SyncedXmlObject {
     var prop = xmlProp.value as NumberProp;
     prop.value = prop.value.round();
   }
+  
+  @override
+  // TODO: implement actionTypeId
+  int get actionTypeId => 0;
 }
 
 class CameraTargetLocationSyncedObject extends SyncedXmlObject {
@@ -646,6 +671,10 @@ class CameraTargetLocationSyncedObject extends SyncedXmlObject {
     updateXmlPropWithStr(prop, "position", propXml);
     updateXmlPropWithStr(prop, "rotation", propXml);
   }
+  
+  @override
+  // TODO: implement actionTypeId
+  int get actionTypeId => 0;
 }
 
 class CameraSyncedObject extends SyncedXmlObject {
@@ -680,4 +709,8 @@ class CameraSyncedObject extends SyncedXmlObject {
   }
 
   bool get rotateOnly => (prop.get("rotateOnly")!.value as NumberProp).value == 1;
+  
+  @override
+  // TODO: implement actionTypeId
+  int get actionTypeId => 0;
 }

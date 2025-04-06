@@ -1,5 +1,6 @@
 import 'package:xml/xml.dart';
 
+import '../xmlProps/xmlActionProp.dart';
 import 'syncGame.dart';
 
 
@@ -11,7 +12,7 @@ enum ActionTypeId {
   enemySetArea(0x6c, "EnemySetArea", true),
   entityLayoutArea(0x6f, "EntityLayoutArea", true),
   enemySupplyAction(0x6d, "EnemySupplyAction", true);
-  //enemyGenerator(0x29, "EnemyGeneratorAction", false);
+  //enemyGenerator(0x29, "EnemyGenerator", false);
 
   final int id;
   final String logLabel;
@@ -50,13 +51,15 @@ class ActionTypeHandler {
     return _actionTypeMap[actionName];
   }
 
-  static void syncAction(String actionName, XmlDocument document) {
-    final typeId = getTypeId(actionName)?.id;
+  static void syncAction(XmlActionProp action, XmlDocument document) {
+    if(action.code.strVal != null) {
+    final typeId = getTypeId(action.code.strVal!)?.id;
     if (typeId != null) {
       _syncLayoutAction(typeId, document);
     } else {
-      print("Action type '$actionName' is not supported.");
+      print("Action type '$action' is not supported.");
     }
+  }
   }
 
   static void _syncLayoutAction(int typeId, XmlDocument document) {

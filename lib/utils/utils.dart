@@ -861,3 +861,10 @@ Future<bool> canOpenAsFile(String path) async {
     return false;
   return await File(path).exists();
 }
+
+/// rooms numbers are hex format but room checks are in global room that are in range 0-9, they don't have hex numbers inside somehow (or i didn't find it yet)
+int? roomNumberByDatName(String datFileName) {
+  final match = RegExp(r'\d+').firstMatch(datFileName);
+  return match != null ? int.tryParse(match.group(0)!) : null;
+}
+

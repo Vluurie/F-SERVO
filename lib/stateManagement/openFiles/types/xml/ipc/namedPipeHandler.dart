@@ -7,11 +7,8 @@ import 'package:dart_ipc/dart_ipc.dart' as NamedPipeSocket;
 
 import '../sync/syncServer.dart';
 import 'messageFrame.dart';
-//import 'messageReceiver.dart';
 
 NamedPipeHandler globalPipeHandler = NamedPipeHandler(pipePath: r'\\.\pipe\nier_pipe');
-
-//MessageReceiver receiver = MessageReceiver(globalPipeHandler);
 
 class NamedPipeHandler {
   Socket? _socket;
@@ -136,4 +133,12 @@ class NamedPipeHandler {
     _socket = null;
     _onDisconnectedController.add(null);
   }
+
+  void dispose() {
+  close();
+  _onMessageReceivedController.close();
+  _onMessageSentController.close();
+  _onConnectedController.close();
+  _onDisconnectedController.close();
+}
 }

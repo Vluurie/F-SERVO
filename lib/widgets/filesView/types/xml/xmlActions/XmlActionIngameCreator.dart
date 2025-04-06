@@ -1,3 +1,5 @@
+import '../../../../../stateManagement/openFiles/types/xml/ipc/messageContext.dart';
+import '../../../../../stateManagement/openFiles/types/xml/ipc/messageResponse.dart';
 import '../../../../../stateManagement/openFiles/types/xml/ipc/messageSender.dart';
 import '../../../../../stateManagement/openFiles/types/xml/ipc/messageTypes.dart';
 import '../../../../../stateManagement/openFiles/types/xml/ipc/namedPipeHandler.dart';
@@ -5,25 +7,56 @@ import '../../../../../stateManagement/openFiles/types/xml/sync/actionTypeHandle
 import '../../../../../stateManagement/openFiles/types/xml/sync/syncServer.dart';
 import '../../../../../stateManagement/openFiles/types/xml/xmlProps/xmlActionProp.dart';
 import '../../../../../stateManagement/openFiles/types/xml/xmlProps/xmlProp.dart';
+import '../../../../../utils/utils.dart';
 
-
-abstract class XmlActionIngameCreator with MessageSender {
+abstract class XmlActionIngameCreator
+    with MessageSender, MessageResponseHandler {
   final XmlActionProp action;
 
   XmlActionIngameCreator(this.action);
 
   void create();
-  
+
+  /// When a user syncs an action from a file, we first check if he (ingame) is located at the same room (or close to it)
+  /// If the played char is not in same room, the HAP he works with is not loaded ingame probably.
+  Future<bool> savetyCheck(XmlActionProp action) async {
+    if (action.datFileName != null) {
+      int? roomNo = roomNumberByDatName(action.datFileName!);
+      if (roomNo != null) {
+        await sendUintMessage(
+          context: MessageContext.none(),
+          messageType: CheckMessages.isInSameRoom.type,
+          value: roomNo,
+        );
+
+        final isSameRoom =
+            await waitForCheckResponse(CheckMessages.isInSameRoom.type);
+        if (!isSameRoom) {
+          print("Warning: Action is in a different room. Ensure you are located on the same place as this Action is located ingame.");
+          return false;
+        } else {
+          return true;
+        }
+      }
+      return false;
+    }
+    return false;
+  }
+
   int? extractActionId() {
     var prop = action.get("id");
     String? idStr = prop?.value.toString();
-    return idStr != null ? int.tryParse(idStr.replaceAll("0x", ""), radix: 16) : null;
+    return idStr != null
+        ? int.tryParse(idStr.replaceAll("0x", ""), radix: 16)
+        : null;
   }
 
   int? extractIdFromProp(XmlProp? prop, String tagName) {
     var idProp = prop?.get(tagName);
     String? idStr = idProp?.value.toString();
-    return idStr != null ? int.tryParse(idStr.replaceAll("0x", ""), radix: 16) : null;
+    return idStr != null
+        ? int.tryParse(idStr.replaceAll("0x", ""), radix: 16)
+        : null;
   }
 }
 
@@ -36,9 +69,9 @@ class XmlActionIngameCreatorFactory {
     if (actionType == null) return null;
 
     if (actionType.isLayoutAction) {
-      return LayoutActionHandler(action, actionType);
-     }
-     //else if {
+      return LayoutActionIngameCreator(action, actionType);
+    }
+    //else if {
     //   return EnemyGeneratorHandler(action, actionType);
     // }
     return null;
@@ -57,24 +90,52 @@ class XmlActionIngameCreatorManager {
   }
 }
 
-class LayoutActionHandler extends XmlActionIngameCreator {
+class LayoutActionIngameCreator extends XmlActionIngameCreator {
   final ActionTypeId actionType;
 
-  LayoutActionHandler(super.action, this.actionType);
+  LayoutActionIngameCreator(super.action, this.actionType);
 
   @override
-  void create() {
+  void create() async {
+    if (action.hapId == null) {
+      return;
+    }
+
+    int? hapId = int.tryParse(action.hapId!);
+    if (hapId == null) {
+      return;
+    }
+
     int? actionId = extractActionId();
-    if (actionId == null) return;
+    if (actionId == null) {
+      return;
+    }
 
     int? entityId = _extractEntityId();
-    if (entityId == null) return;
+    if (entityId == null) {
+      return;
+    }
 
-    sendCheckActionExistOrCreate(
+    String? objId = _extractObjId();
+
+    if(objId == null)
+    return;
+
+    bool isSafe = await savetyCheck(action);
+    if (!isSafe) {
+      return;
+    }
+    final context = MessageContext(
       id: entityId,
       typeId: actionType.id,
       actionId: actionId,
-      messageType: LayoutMessages.checkExistOrCreate.type
+      hapId: hapId,
+      objId: objId
+    );
+
+    await sendCheckActionExistOrCreate(
+      context: context,
+      messageType: LayoutMessages.checkExistOrCreate.type,
     );
   }
 
@@ -84,5 +145,15 @@ class LayoutActionHandler extends XmlActionIngameCreator {
     var inner = normal?.get("layouts");
     var val = inner?.get("value");
     return extractIdFromProp(val, "id");
+  }
+
+    String? _extractObjId() {
+    var layouts = action.get("layouts");
+    var normal = layouts?.get("normal");
+    var inner = normal?.get("layouts");
+    var val = inner?.get("value");
+    var prop = val?.get("objId");
+
+    return prop?.value.toString();
   }
 }

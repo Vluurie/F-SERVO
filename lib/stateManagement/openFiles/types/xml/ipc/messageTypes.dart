@@ -4,7 +4,11 @@ class MessageType {
 
   const MessageType(this.type);
 
-  static const Set<int> types = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  static const Set<int> types = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+}
+
+class CheckMessages {
+  static const MessageType isInSameRoom = MessageType(11);
 }
 
 class PlayerMessages {

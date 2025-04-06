@@ -101,6 +101,7 @@ class XmlArrayEditorState<T extends XmlArrayEditor> extends ChangeNotifierState<
         widget.childrenPreset.duplicateAsXml(widget.parent[ownIndex]),
         parentTags: widget.parent.nextParents(),
         file: widget.parent.file,
+        rootProp: widget.parent.rootProp
       )
     );
 

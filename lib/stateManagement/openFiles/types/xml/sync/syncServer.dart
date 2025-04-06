@@ -9,8 +9,8 @@ import '../../../../../utils/fileOpenCommand.dart';
 import '../../../../events/statusInfo.dart';
 import '../ipc/messageTypes.dart';
 import '../ipc/namedPipeHandler.dart';
-import 'actionTypeHandler.dart';
-import 'syncGame.dart'; 
+import 'syncGame.dart';
+import 'syncObjects.dart'; 
 
 const wsPort = 1547;
 
@@ -96,20 +96,22 @@ void _onClientData(data) {
     return;
   }
 
-  if (method == "update") {
-    var msg = SyncMessage.fromJson(jsonData);
-    String? propXml = msg.args["propXml"];
-    if (propXml != null) {
-      _procLayout(propXml);
-    }
-  }
-
   var message = SyncMessage.fromJson(jsonData);
+
+  if (method == "update") {
+    String? propXml = message.args["propXml"];
+    if (propXml == null) return;
+    var syncedObject = syncedObjects[message.uuid];
+    if (syncedObject == null) return;
+
+    int actionTypeId = syncedObject.actionTypeId;
+    _procLayout(propXml, actionTypeId);
+  }
   _wsMessageStream.add(message);
 }
 
-// TODO: We need to handle this somewhere else better but idk how to know if this data is what action tyoe
-void _procLayout(String xml) {
+// Solution: Get actionTypeId by actionCode in SyncedObject and get it then by uuid map
+void _procLayout(String xml, int actionTypeId) {
   final Map<String, int> msgTypes = {
     "position": LayoutMessages.setPosition.type,
     "rotation": LayoutMessages.setRotation.type,
@@ -119,7 +121,7 @@ void _procLayout(String xml) {
   final document = XmlDocument.parse(xml);
 
   final SyncGameLayout lay = SyncGameLayout(
-    ActionTypeId.entityLayoutAction.id,
+    actionTypeId,
     layoutCache: _entityLayoutCache,
     messageTypeMap: msgTypes,
   );
