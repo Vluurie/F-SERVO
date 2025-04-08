@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../../../stateManagement/openFiles/types/xml/ipc/namedPipeHandler.dart';
 import '../../../../../stateManagement/openFiles/types/xml/sync/syncListImplementations.dart';
 import '../../../../misc/syncButton.dart';
 import '../customXmlProps/layoutsEditor.dart';
@@ -28,7 +29,9 @@ class _XmlEntityActionEditorState extends XmlActionEditorState<XmlEntityActionEd
             parentUuid: "",
           );
 
+           if(globalPipeHandler.isConnected) { 
            XmlActionIngameCreatorManager(action: action).create();
+           }
 
           return syncedAction;
         },

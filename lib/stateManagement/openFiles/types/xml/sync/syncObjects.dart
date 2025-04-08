@@ -1,4 +1,3 @@
-
 // ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 
 import 'dart:async';
@@ -14,9 +13,10 @@ import '../../../../Property.dart';
 import '../../../../events/statusInfo.dart';
 import '../../../../hasUuid.dart';
 import '../../../../listNotifier.dart';
+import '../ipc/namedPipeHandler.dart';
 import '../xmlProps/xmlActionProp.dart';
 import '../xmlProps/xmlProp.dart';
-import 'actionTypeHandler.dart';
+import 'syncActionCreator.dart';
 import 'syncMessageExtractor.dart';
 import 'syncServer.dart';
 
@@ -141,7 +141,7 @@ abstract class SyncedObject with HasUuid implements Disposable {
     endSync();
   }
 
-   int get actionTypeId;
+  int get actionTypeId;
 
   SyncMessage getStartSyncMsg();
 
@@ -166,9 +166,12 @@ abstract class SyncedObject with HasUuid implements Disposable {
   @override
   void dispose() {}
 
+  void syncToGame() {}
+
   void update(SyncMessage message) async {
     _isUpdating = true;
     updateInternal(message);
+    syncToGame();
     // prevent feedback loop
     await Future.delayed(const Duration(milliseconds: 10));
     _isUpdating = false;
@@ -223,22 +226,18 @@ abstract class SyncedXmlObject extends SyncedObject with SyncMessageDocExtractor
     );
   }
 
-void _syncToClient() {
-  print("Syncing to client: $uuid");
-
-  if (this is EntitySyncedObject) {
-    (this as EntitySyncedObject).syncToGame();
+  void _syncToClient() {
+    print("Syncing to client: $uuid");
+    syncToGame();
+    wsSend(SyncMessage(
+      "update",
+      uuid,
+      {
+        "type": SyncUpdateType.prop.index,
+        "propXml": prop.toXml().toXmlString()
+      }
+    ));
   }
-
-  wsSend(SyncMessage(
-    "update",
-    uuid,
-    {
-      "type": SyncUpdateType.prop.index,
-      "propXml": prop.toXml().toXmlString()
-    }
-  ));
-}
 
   void _onPropChange() {
     if (_isUpdating)
@@ -381,7 +380,7 @@ class SyncedList<T extends HasUuid> extends SyncedObject {
       syncedObjectsNotifier.notifyListeners();
       wsSend(SyncMessage(
         "update",
-        this.uuid,
+      this.uuid,
         {
           "type": SyncUpdateType.add.index,
           "uuid": uuid,
@@ -522,22 +521,18 @@ class EntitySyncedObject extends SyncedXmlObject {
     updateXmlPropWithStr(prop, "objId", propXml);
   }
 
-void syncToGame() {
-  
-    final actionName = action.code.strVal;
-
-    if (actionName == null) return;
-
-      final xmlString = prop.toXml().toXmlString();
-      final document = XmlDocument.parse(xmlString);
-      ActionTypeHandler.syncAction(action, document);
+  @override
+  void syncToGame() {
+    if(!globalPipeHandler.isConnected) return;
+    final xmlString = prop.toXml().toXmlString();
+    final document = XmlDocument.parse(xmlString);
+    ActionSyncCreator.syncAction(action, document);
   }
   
    @override
   int get actionTypeId {
     final actionName = action.code.strVal;
-    final type = actionName != null ? ActionTypeHandler.getTypeId(actionName) : null;
-    return type?.id ?? 0;
+    return ActionTypeId.fromName(actionName ?? "")?.id ?? 0;
   }
 }
 

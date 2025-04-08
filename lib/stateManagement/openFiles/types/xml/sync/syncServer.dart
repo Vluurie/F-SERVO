@@ -83,6 +83,8 @@ void _handleWebSocket(WebSocket client) {
   wsSend(SyncMessage("connected", "", {}));
   if (_startupCompleted())
    messageLog.add("Connected");
+   if(!globalPipeHandler.isConnected)
+   unawaited(globalPipeHandler.connect());
 }
 
 void _onClientData(data) {
@@ -103,14 +105,14 @@ void _onClientData(data) {
     if (propXml == null) return;
     var syncedObject = syncedObjects[message.uuid];
     if (syncedObject == null) return;
-
-    int actionTypeId = syncedObject.actionTypeId;
+     if(globalPipeHandler.isConnected) { 
+     int actionTypeId = syncedObject.actionTypeId;
     _procLayout(propXml, actionTypeId);
+     }
   }
   _wsMessageStream.add(message);
 }
 
-// Solution: Get actionTypeId by actionCode in SyncedObject and get it then by uuid map
 void _procLayout(String xml, int actionTypeId) {
   final Map<String, int> msgTypes = {
     "position": LayoutMessages.setPosition.type,
@@ -152,7 +154,6 @@ void startSyncServer() async {
     final server = await HttpServer.bind("localhost", wsPort);
     server.transform(WebSocketTransformer()).listen(_handleWebSocket);
     serverStartTime = DateTime.now();
-    unawaited(globalPipeHandler.connect());
   } catch (e) {
     print("Failed to start local server. Maybe already running");
   }

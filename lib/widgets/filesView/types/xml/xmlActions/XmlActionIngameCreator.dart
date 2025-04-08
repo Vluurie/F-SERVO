@@ -3,7 +3,7 @@ import '../../../../../stateManagement/openFiles/types/xml/ipc/messageResponse.d
 import '../../../../../stateManagement/openFiles/types/xml/ipc/messageSender.dart';
 import '../../../../../stateManagement/openFiles/types/xml/ipc/messageTypes.dart';
 import '../../../../../stateManagement/openFiles/types/xml/ipc/namedPipeHandler.dart';
-import '../../../../../stateManagement/openFiles/types/xml/sync/actionTypeHandler.dart';
+import '../../../../../stateManagement/openFiles/types/xml/sync/syncActionCreator.dart';
 import '../../../../../stateManagement/openFiles/types/xml/sync/syncServer.dart';
 import '../../../../../stateManagement/openFiles/types/xml/xmlProps/xmlActionProp.dart';
 import '../../../../../stateManagement/openFiles/types/xml/xmlProps/xmlProp.dart';
@@ -65,16 +65,8 @@ class XmlActionIngameCreatorFactory {
     String? code = action.code.strVal;
     if (code == null || code.isEmpty) return null;
 
-    final actionType = ActionTypeHandler.getTypeId(code);
-    if (actionType == null) return null;
-
-    if (actionType.isLayoutAction) {
-      return LayoutActionIngameCreator(action, actionType);
-    }
-    //else if {
-    //   return EnemyGeneratorHandler(action, actionType);
-    // }
-    return null;
+    final syncAction = ActionSyncCreator.getSyncAction(code);
+    return syncAction?.createIngame(action);
   }
 }
 
@@ -91,9 +83,9 @@ class XmlActionIngameCreatorManager {
 }
 
 class LayoutActionIngameCreator extends XmlActionIngameCreator {
-  final ActionTypeId actionType;
+  final int typeId;
 
-  LayoutActionIngameCreator(super.action, this.actionType);
+  LayoutActionIngameCreator(super.action, this.typeId);
 
   @override
   void create() async {
@@ -117,9 +109,9 @@ class LayoutActionIngameCreator extends XmlActionIngameCreator {
     }
 
     String? objId = _extractObjId();
-
-    if(objId == null)
-    return;
+    if (objId == null) {
+      return;
+    }
 
     bool isSafe = await savetyCheck(action);
     if (!isSafe) {
@@ -127,7 +119,7 @@ class LayoutActionIngameCreator extends XmlActionIngameCreator {
     }
     final context = MessageContext(
       id: entityId,
-      typeId: actionType.id,
+      typeId: typeId,
       actionId: actionId,
       hapId: hapId,
       objId: objId
@@ -147,7 +139,7 @@ class LayoutActionIngameCreator extends XmlActionIngameCreator {
     return extractIdFromProp(val, "id");
   }
 
-    String? _extractObjId() {
+  String? _extractObjId() {
     var layouts = action.get("layouts");
     var normal = layouts?.get("normal");
     var inner = normal?.get("layouts");
